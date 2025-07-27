@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+const API_BASE = '/api';
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Tournament World Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        #map {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 320px;
+            bottom: 0;
+            background: #0a0a0a;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo::before {
+            content: '♔';
+            font-size: 32px;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            right: 0;
+            width: 320px;
+            height: calc(100% - 60px);
+            background: #2a2a2a;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+        }
+        
+        .filter-section {
+            margin-bottom: 25px;
+        }
+        
+        .filter-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #ccc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .filter-input, .filter-select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #5090d3;
+            background: #222;
+        }
+        
+        .type-filters {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .type-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+            text-align: center;
+        }
+        
+        .type-btn.active {
+            background: #5090d3;
+            border-color: #5090d3;
+            color: #fff;
+        }
+        
+        .type-btn:hover {
+            background: #333;
+            border-color: #666;
+        }
+        
+        .type-btn.active:hover {
+            background: #4080c3;
+        }
+        
+        .date-range {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .apply-filters {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #5090d3 0%, #3a7bc8 100%);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        
+        .apply-filters:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(80, 144, 211, 0.3);
+        }
+        
+        .tournament-popup {
+            max-width: 300px;
+        }
+        
+        .popup-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #1e3c72;
+        }
+        
+        .popup-info {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .popup-info div {
+            margin-bottom: 5px;
+        }
+        
+        .popup-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .type-classical {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .type-rapid {
+            background: #FF9800;
+            color: white;
+        }
+        
+        .type-blitz {
+            background: #f44336;
+            color: white;
+        }
+        
+        .stats {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #5090d3;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: #5090d3;
+            z-index: 2000;
+        }
+        
+        .custom-marker {
+            background: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #1e3c72;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            #map {
+                right: 0;
+                bottom: 200px;
+            }
+            
+            .sidebar {
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                height: 200px;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Chess Tournament Finder</div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="sidebar">
+        <div class="stats">
+            <div class="stat-number" id="tournamentCount">0</div>
+            <div class="stat-label">Tournaments Found</div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-title">Tournament Type</div>
+            <div class="type-filters">
+                <button class="type-btn active" data-type="all">All</button>
+                <button class="type-btn" data-type="classical">Classical</button>
+                <button class="type-btn" data-type="rapid">Rapid</button>
+                <button class="type-btn" data-type="blitz">Blitz</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-title">Location</div>
+            <div class="filter-group">
+                <select class="filter-select" id="countryFilter">
+                    <option value="">All Countries</option>
+                </select>
+                <input type="text" class="filter-input" id="cityFilter" placeholder="City name...">
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-title">Date Range</div>
+            <div class="date-range">
+                <input type="date" class="filter-input" id="startDate">
+                <input type="date" class="filter-input" id="endDate">
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-title">Rating Range</div>
+            <div class="date-range">
+                <input type="number" class="filter-input" id="minRating" placeholder="Min">
+                <input type="number" class="filter-input" id="maxRating" placeholder="Max">
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-title">Search</div>
+            <input type="text" class="filter-input" id="searchInput" placeholder="Tournament name...">
+        </div>
+        
+        <button class="apply-filters" onclick="applyFilters()">Apply Filters</button>
+    </div>
+    
+    <div class="loading" id="loading">Loading tournaments...</div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <script>
+        // API Configuration
+        const API_BASE = 'http://localhost:3000/api';
+        
+        // Initialize map
+        const map = L.map('map', {
+            center: [50, 10],
+            zoom: 4,
+            minZoom: 2,
+            maxZoom: 18,
+            zoomControl: true
+        });
+        
+        // Add dark theme tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+        
+        // Create marker cluster group
+        const markers = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            maxClusterRadius: 50
+        });
+        
+        // Tournament data
+        let tournaments = [];
+        let filteredTournaments = [];
+        
+        // Custom icons for different tournament types
+        const icons = {
+            classical: L.divIcon({
+                html: '♔',
+                className: 'custom-marker',
+                iconSize: [30, 30]
+            }),
+            rapid: L.divIcon({
+                html: '♕',
+                className: 'custom-marker',
+                iconSize: [30, 30]
+            }),
+            blitz: L.divIcon({
+                html: '♗',
+                className: 'custom-marker',
+                iconSize: [30, 30]
+            })
+        };
+        
+        // Initialize filters
+        async function initializeFilters() {
+            try {
+                const response = await fetch(`${API_BASE}/filters/options`);
+                const data = await response.json();
+                
+                // Populate country filter
+                const countrySelect = document.getElementById('countryFilter');
+                data.countries.forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.iso_code;
+                    option.textContent = country.name;
+                    countrySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading filter options:', error);
+            }
+        }
+        
+        // Load tournaments
+        async function loadTournaments() {
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/tournaments?limit=1000`);
+                const data = await response.json();
+                tournaments = data.tournaments;
+                filteredTournaments = tournaments;
+                
+                displayTournaments(tournaments);
+                updateStats();
+            } catch (error) {
+                console.error('Error loading tournaments:', error);
+                alert('Failed to load tournaments. Please check if the API is running.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // Display tournaments on map
+        function displayTournaments(tournamentsToDisplay) {
+            markers.clearLayers();
+            
+            tournamentsToDisplay.forEach(tournament => {
+                if (tournament.latitude && tournament.longitude) {
+                    const marker = L.marker([tournament.latitude, tournament.longitude], {
+                        icon: icons[tournament.tournament_type] || icons.classical
+                    });
+                    
+                    marker.bindPopup(createPopupContent(tournament));
+                    markers.addLayer(marker);
+                }
+            });
+            
+            map.addLayer(markers);
+            
+            // Fit map to markers if any exist
+            if (tournamentsToDisplay.length > 0) {
+                map.fitBounds(markers.getBounds(), { padding: [50, 50] });
+            }
+        }
+        
+        // Create popup content
+        function createPopupContent(tournament) {
+            const startDate = new Date(tournament.start_date).toLocaleDateString();
+            const endDate = new Date(tournament.end_date).toLocaleDateString();
+            
+            return `
+                <div class="tournament-popup">
+                    <div class="popup-title">${tournament.name}</div>
+                    <div class="popup-type type-${tournament.tournament_type}">${tournament.tournament_type.toUpperCase()}</div>
+                    <div class="popup-info">
+                        <div>📍 ${tournament.city_name}, ${tournament.country_name}</div>
+                        <div>📅 ${startDate} - ${endDate}</div>
+                        <div>⏱️ ${tournament.time_control || 'N/A'}</div>
+                        ${tournament.entry_fee ? `<div>💰 ${tournament.entry_fee} ${tournament.currency}</div>` : ''}
+                        ${tournament.max_players ? `<div>👥 Max: ${tournament.max_players} players</div>` : ''}
+                        ${tournament.website ? `<div><a href="${tournament.website}" target="_blank">🔗 Website</a></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Apply filters
+        function applyFilters() {
+            const selectedTypes = Array.from(document.querySelectorAll('.type-btn.active'))
+                .map(btn => btn.dataset.type)
+                .filter(type => type !== 'all');
+            
+            const country = document.getElementById('countryFilter').value;
+            const city = document.getElementById('cityFilter').value.toLowerCase();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const minRating = document.getElementById('minRating').value;
+            const maxRating = document.getElementById('maxRating').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            
+            filteredTournaments = tournaments.filter(tournament => {
+                // Type filter
+                if (selectedTypes.length > 0 && !selectedTypes.includes(tournament.tournament_type)) {
+                    return false;
+                }
+                
+                // Country filter
+                if (country && tournament.country_code !== country) {
+                    return false;
+                }
+                
+                // City filter
+                if (city && !tournament.city_name.toLowerCase().includes(city)) {
+                    return false;
+                }
+                
+                // Date filters
+                if (startDate && new Date(tournament.start_date) < new Date(startDate)) {
+                    return false;
+                }
+                if (endDate && new Date(tournament.end_date) > new Date(endDate)) {
+                    return false;
+                }
+                
+                // Rating filters
+                if (minRating && tournament.max_rating && tournament.max_rating < parseInt(minRating)) {
+                    return false;
+                }
+                if (maxRating && tournament.min_rating && tournament.min_rating > parseInt(maxRating)) {
+                    return false;
+                }
+                
+                // Search filter
+                if (search && !tournament.name.toLowerCase().includes(search)) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            displayTournaments(filteredTournaments);
+            updateStats();
+        }
+        
+        // Update statistics
+        function updateStats() {
+            document.getElementById('tournamentCount').textContent = filteredTournaments.length;
+        }
+        
+        // Type button toggles
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.dataset.type === 'all') {
+                    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                } else {
+                    document.querySelector('.type-btn[data-type="all"]').classList.remove('active');
+                    this.classList.toggle('active');
+                    
+                    // If no type is selected, select 'all'
+                    if (!document.querySelector('.type-btn.active')) {
+                        document.querySelector('.type-btn[data-type="all"]').classList.add('active');
+                    }
+                }
+            });
+        });
+        
+        // Initialize application
+        async function init() {
+            await initializeFilters();
+            await loadTournaments();
+            
+            // Set default date range (today to 1 year from now)
+            const today = new Date().toISOString().split('T')[0];
+            const oneYearLater = new Date();
+            oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+            document.getElementById('startDate').value = today;
+            document.getElementById('endDate').value = oneYearLater.toISOString().split('T')[0];
+        }
+        
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
+
